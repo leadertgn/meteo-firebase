@@ -2,8 +2,7 @@ name: Tâche météo quotidienne
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Tous les jours à 5h UTC (6h au Bénin)
-  workflow_dispatch:
+  - cron: '0 23 * * *'  # Tous les jours à 23h UTC (00h Bénin)  workflow_dispatch:
 
 jobs:
   fetch-and-store-weather:
