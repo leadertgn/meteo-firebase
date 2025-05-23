@@ -1,7 +1,7 @@
 import requests
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime
+from datetime import datetime, date
 import pytz
 import os
 import json
@@ -39,6 +39,7 @@ try:
         dt_utc = pytz.utc.localize(dt_utc)
         dt_local = dt_utc.astimezone(tz_local)
 
+        # On garde uniquement les prévisions du jour courant
         if dt_local.date() == date_ajd:
             prevision = {
                 "dt_txt": dt_local.strftime("%Y-%m-%d %H:%M:%S"),
@@ -49,12 +50,15 @@ try:
             previsions_jour.append(prevision)
 
     doc_id = date_ajd.strftime("%Y-%m-%d")
-    collection_meteo.document(doc_id).set({
-        "ville": VILLE.split(',')[0],
-        "previsions": previsions_jour
-    })
-
-    print(f"{len(previsions_jour)} prévisions sauvegardées pour le {doc_id}")
+    # Vérification explicite pour ne sauvegarder que si c'est aujourd'hui
+    if date_ajd == date.today():
+        collection_meteo.document(doc_id).set({
+            "ville": VILLE.split(',')[0],
+            "previsions": previsions_jour
+        })
+        print(f"{len(previsions_jour)} prévisions sauvegardées pour le {doc_id}")
+    else:
+        print("Aucune prévision sauvegardée car la date n'est pas celle d'aujourd'hui.")
 
 except Exception as e:
     print("Erreur :", e)
