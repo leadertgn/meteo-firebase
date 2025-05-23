@@ -52,6 +52,11 @@ try:
     doc_id = date_ajd.strftime("%Y-%m-%d")
     # Vérification explicite pour ne sauvegarder que si c'est aujourd'hui
     if date_ajd == date.today():
+        # === Suppression des anciennes prévisions ===
+        docs = collection_meteo.stream()
+        for doc in docs:
+            if doc.id != date_ajd.strftime("%Y-%m-%d"):
+                doc.reference.delete()
         collection_meteo.document(doc_id).set({
             "ville": VILLE.split(',')[0],
             "previsions": previsions_jour
