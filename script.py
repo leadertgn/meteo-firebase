@@ -5,29 +5,32 @@ from datetime import datetime, date
 import pytz
 import os
 import json
+import tempfile
 
 # === Initialisation Firebase ===
 firebase_key_str = os.environ["FIREBASE_KEY_JSON"]
 firebase_key = json.loads(firebase_key_str)
 
-with open("temp_firebase_key.json", "w") as f:
-    json.dump(firebase_key, f)
-
-cred = credentials.Certificate("temp_firebase_key.json")
-firebase_admin.initialize_app(cred)
-db = firestore.client()
-
-# === Paramètres météo ===
-API_KEY = os.environ["OPENWEATHER_API_KEY"]
-VILLE = os.environ["VILLE_METEO"]
-URL = f"http://api.openweathermap.org/data/2.5/forecast?q={VILLE}&appid={API_KEY}&units=metric&lang=fr"
-
-# Fuseau horaire local (Cotonou)
-tz_local = pytz.timezone("Africa/Porto-Novo")
-date_ajd = datetime.now(tz_local).date()
-collection_meteo = db.collection("meteo")
+# Créer un fichier temporaire de façon sécurisée
+with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as temp_file:
+    json.dump(firebase_key, temp_file)
+    temp_file_path = temp_file.name
 
 try:
+    cred = credentials.Certificate(temp_file_path)
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+
+    # === Paramètres météo ===
+    API_KEY = os.environ["OPENWEATHER_API_KEY"]
+    VILLE = os.environ["VILLE_METEO"]
+    URL = f"http://api.openweathermap.org/data/2.5/forecast?q={VILLE}&appid={API_KEY}&units=metric&lang=fr"
+
+    # Fuseau horaire local (Cotonou)
+    tz_local = pytz.timezone("Africa/Porto-Novo")
+    date_ajd = datetime.now(tz_local).date()
+    collection_meteo = db.collection("meteo")
+
     response = requests.get(URL)
     response.raise_for_status()
     data = response.json()
@@ -50,9 +53,8 @@ try:
             previsions_jour.append(prevision)
 
     doc_id = date_ajd.strftime("%Y-%m-%d")
-    # Vérification explicite pour ne sauvegarder que si c'est aujourd'hui
     if date_ajd == date.today():
-        # === Suppression des anciennes prévisions ===
+        # Suppression des anciennes prévisions
         docs = collection_meteo.stream()
         for doc in docs:
             if doc.id != date_ajd.strftime("%Y-%m-%d"):
@@ -67,3 +69,8 @@ try:
 
 except Exception as e:
     print("Erreur :", e)
+
+finally:
+    # Suppression sécurisée du fichier temporaire
+    if os.path.exists(temp_file_path):
+        os.remove(temp_file_path)
